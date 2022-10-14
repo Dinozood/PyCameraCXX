@@ -36,7 +36,7 @@
 
 // Driver code
 void InitSocket(int& sockfd, sockaddr_in& servaddr, sockaddr_in& cliaddr) {
-    uint64 PORT = 9417;
+    uint64 PORT = 8080;
 
     if (SOCKET_ERROR == (sockfd = socket(AF_INET, SOCK_DGRAM, 0))) {
         perror("socket creation failed");
@@ -61,7 +61,7 @@ void InitSocket(int& sockfd, sockaddr_in& servaddr, sockaddr_in& cliaddr) {
 }
 
 int main() {
-    uint64 MAXLINE = 700*700;
+    uint64 MAXLINE = 1024;
     int sockfd, newsockfd;
     char buffer[MAXLINE];
     char hello[] = "Hello from server";
@@ -73,21 +73,38 @@ int main() {
 
     len = sizeof(cliaddr); //len is value/result
     listen(sockfd,5);
-    newsockfd = accept(sockfd,
-                       (struct sockaddr *) &cliaddr,
-                       reinterpret_cast<socklen_t *>(&len));
-    if (newsockfd < 0) {
-        std::cerr << "ERROR on accept" << std::endl;
-        std::exit(EXIT_FAILURE);
-    }
+//    newsockfd = accept(sockfd,
+//                       (struct sockaddr *) &cliaddr,
+//                       reinterpret_cast<socklen_t *>(&len));
+//    if (newsockfd < 0) {
+//        std::cerr << "ERROR on accept" << std::endl;
+//        std::exit(EXIT_FAILURE);
+//    }
 
     bzero(buffer,MAXLINE);
     n = recvfrom(sockfd, (char *)buffer, MAXLINE,
                  MSG_WAITALL, ( struct sockaddr *) &cliaddr,
                  reinterpret_cast<socklen_t *>(&len));
+    char str[100];
+    inet_ntop(AF_INET, &(cliaddr.sin_addr), str, INET_ADDRSTRLEN);
+    std::cout << str << std::endl;
     if (n < 0) {
         std::cerr << "ERROR reading from socket" << std::endl;
         std::exit(EXIT_FAILURE);
+    }
+    cv::Mat img;
+    cv::VideoCapture cap(0);
+    while (true) {
+        cap.read(img);
+        sendto(sockfd, "BEGIN", MAXLINE, 0, (const struct sockaddr*) &cliaddr, len);
+        for (int i = 0; i < 900; ++i) {
+            memcpy(buffer, img.data + (i * MAXLINE), MAXLINE);
+            sendto(sockfd, buffer, MAXLINE, 0, (const struct sockaddr*) &cliaddr, len);
+            usleep(100);
+        }
+        std::cout << "Image sended";
+        usleep(25000);
+        break;
     }
 
     sendto(sockfd, (const char *)hello, strlen(hello),

@@ -26,8 +26,7 @@
 #define SOCKET_ERROR (-1)
 
 void InitSocket(int& sockfd, sockaddr_in& serveraddr) {
-    uint64 PORT = 9417;
-    uint64 MAXLINE = 700*700;
+    uint64 PORT = 8080;
     struct addrinfo addrInfo{}, *res;
     const char * inetAddr;
 
@@ -47,6 +46,7 @@ void InitSocket(int& sockfd, sockaddr_in& serveraddr) {
 
     inetAddr = inet_ntoa(((sockaddr_in *) res -> ai_addr) -> sin_addr);
 
+    inetAddr = "10.166.0.12";
     // Filling server information
     serveraddr.sin_family = AF_INET;
     serveraddr.sin_port = htons(PORT);
@@ -54,8 +54,9 @@ void InitSocket(int& sockfd, sockaddr_in& serveraddr) {
 }
 
 int main() {
-    uint64 MAXLINE = 700*700;
+    uint64 MAXLINE = 1024;
     char buffer[MAXLINE];
+    std::vector<char> imgVec(640*480*3, 0);
     char hello[] = "Hello from client";
 
     int sockfd;
@@ -68,12 +69,30 @@ int main() {
            MSG_CONFIRM, (const struct sockaddr *) &servaddr,
            sizeof(servaddr));
     printf("Hello message sent.\n");
-
-    n = recvfrom(sockfd, (char *)buffer, MAXLINE,
-                 MSG_WAITALL, (struct sockaddr *) &servaddr,
-                 reinterpret_cast<socklen_t *>(&len));
-    buffer[n] = '\0';
-    printf("Server : %s\n", buffer);
+    cv::Mat img;
+    cv::namedWindow("PyCameraCXX", cv::WINDOW_AUTOSIZE);
+    cv::resizeWindow("PyCameraCXX", cv::Size(640, 480));
+    while (true) {
+        n = recvfrom(sockfd, buffer, MAXLINE,
+                     0, (struct sockaddr *) &servaddr,
+                     reinterpret_cast<socklen_t *>(&len));
+        if (buffer[0] == 'B' and buffer[1] == 'E') {
+            for (int i = 0; i < 900; ++i) {
+                n = recvfrom(sockfd, buffer, MAXLINE,
+                             0, (struct sockaddr *) &servaddr,
+                             reinterpret_cast<socklen_t *>(&len));
+                memcpy(buffer, imgVec.data() + (i * MAXLINE), MAXLINE);
+                std::cout << "Got packet\n";
+            }
+            std::cout << "Got Image\n";
+            img = cv::Mat(640,480,CV_8U, imgVec.data());
+            cv::imshow("PyCameraCXX", img);
+            break;
+        }
+    }
+    img = cv::Mat(640,480,CV_8U, imgVec.data());
+    cv::imshow("PyCameraCXX", img);
+    cv::imwrite("/home/dinozood/Projects/PyCameraCXX/remoteImage.jpg", img);
 
     close(sockfd);
     return 0;
