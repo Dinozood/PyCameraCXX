@@ -22,6 +22,7 @@
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <netdb.h>
+#include <chrono>
 
 #define SOCKET_ERROR (-1)
 
@@ -46,7 +47,8 @@ void InitSocket(int& sockfd, sockaddr_in& serveraddr) {
 
     inetAddr = inet_ntoa(((sockaddr_in *) res -> ai_addr) -> sin_addr);
 
-    inetAddr = "10.166.0.12";
+//    inetAddr = "10.166.0.12";
+    inetAddr = "192.168.0.61";
     // Filling server information
     serveraddr.sin_family = AF_INET;
     serveraddr.sin_port = htons(PORT);
@@ -54,7 +56,7 @@ void InitSocket(int& sockfd, sockaddr_in& serveraddr) {
 }
 
 int main() {
-    uint64 MAXLINE = 1024;
+    uint64 MAXLINE = 1024 * 50;
     char buffer[MAXLINE];
     std::vector<char> imgVec(640*480*3, 0);
     char hello[] = "Hello from client";
@@ -71,30 +73,46 @@ int main() {
     printf("Hello message sent.\n");
     cv::Mat img;
     cv::namedWindow("PyCameraCXX", cv::WINDOW_AUTOSIZE);
-    cv::resizeWindow("PyCameraCXX", cv::Size(640, 480));
+    cv::resizeWindow("PyCameraCXX", cv::Size(1900,1010));
+
     while (true) {
-        n = recvfrom(sockfd, buffer, MAXLINE,
+
+        n = recvfrom(sockfd, buffer, 1024,
                      0, (struct sockaddr *) &servaddr,
                      reinterpret_cast<socklen_t *>(&len));
         if (buffer[0] == 'B' and buffer[1] == 'E') {
-            for (int i = 0; i < 900; ++i) {
+            auto start = std::chrono::system_clock::now();
+//            std::cout << "Started Img\n";
+            for (int i = 0; i < 18; ++i) {
                 n = recvfrom(sockfd, buffer, MAXLINE,
                              0, (struct sockaddr *) &servaddr,
                              reinterpret_cast<socklen_t *>(&len));
-                memcpy(buffer, imgVec.data() + (i * MAXLINE), MAXLINE);
-                std::cout << "Got packet\n";
+                memcpy(imgVec.data() + (i * MAXLINE), buffer, MAXLINE);
             }
-            std::cout << "Got Image\n";
-            img = cv::Mat(640,480,CV_8U, imgVec.data());
+//            std::cout << "Got Image\n";
+            img = cv::Mat(480, 640 ,CV_8UC3, imgVec.data());
+            cv::resize(img, img, cv::Size(1900,1010), 0, 0,cv::INTER_LINEAR);
+            auto end = std::chrono::system_clock::now();
+            std::chrono::duration<double> diff = end - start;
+            float fps = 1.0 / diff.count();
+            cv::putText(img, std::to_string(fps), cv::Point(10,10), cv::FONT_HERSHEY_PLAIN,
+                        1, cv::Scalar(0,0,255), 1, false);
             cv::imshow("PyCameraCXX", img);
-            break;
+//            std::cout << diff.count() << "\n";
+
+
+            cv::waitKey(1);
         }
     }
-    img = cv::Mat(640,480,CV_8U, imgVec.data());
+    img = cv::Mat(480,640 ,CV_8UC3, imgVec.data());
+
     cv::imshow("PyCameraCXX", img);
+    cv::imwrite("/home/dinozood/Projects/Pets/PyCameraC/remoteImage.jpg", img);
+    cv::waitKey(0);
     cv::imwrite("/home/dinozood/Projects/PyCameraCXX/remoteImage.jpg", img);
 
     close(sockfd);
     return 0;
+
 }
 

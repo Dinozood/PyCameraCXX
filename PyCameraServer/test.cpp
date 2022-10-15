@@ -7,30 +7,22 @@
 #include <opencv4/opencv2/imgproc.hpp>
 #include <opencv4/opencv2/imgcodecs.hpp>
 #include <cstring>
-#include <sys/socket.h>
-#include <netinet/in.h>
-
+#include <unistd.h>
 using namespace cv;
 
 int main() {
 
-    /*Mat img;
+    chroot("~/PyCameraCXX");
+    Mat img;
     VideoCapture cap(0);
-    cap.read(img);
-    std::cout << "WElel" << std::endl;
-    std::cout << img.size << std::endl;
 
-    imwrite("/home/pi/PyCameraCXX/image2.jpg", img);
-*/
+    if (!cap.isOpened()) {
+        std::cerr << "cannot open camera";
+    }
 
-//    int n;
-//    unsigned int m = sizeof(n);
-//    int fdsocket;
-//    fdsocket = socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP); // example
-//    getsockopt(fdsocket,SOL_SOCKET,SO_RCVBUF,(void *)&n, &m);
-//
-//    std::cout << n << std::endl; // n = 212992
-// now the variable n will have the socket size
+    cap >> img;
+
+    imwrite("/home/pi/PyCameraCXX/PyCXXImage.jpg", img);
 
     return 0;
 }
